@@ -187,20 +187,16 @@ func (as *ActivationService) Activate(code, kind, deviceId, account string) (err
     return nil, expireAt
 }
 
-// CleanExpiredPeers ID 开通到期 3 天删行 + 删地址簿
+// CleanExpiredPeers 未激活或已到期满3天：移出地址簿，变游离，其他信息不动
 func (as *ActivationService) CleanExpiredPeers() {
     cutoff := time.Now().Unix() - 3*86400
-    var list []model.Peer
-    DB.Where("lease_expire_at > 0 AND lease_expire_at < ?", cutoff).Find(&list)
-    for _, p := range list {
-        as.removePeerAndAB(p.Id)
-    }
-    // 从未激活且创建超 3 天
     cutoffTime := time.Now().Add(-3 * 24 * time.Hour)
-    var list2 []model.Peer
-    DB.Where("lease_expire_at = 0 AND host_expire_at = 0 AND created_at < ?", cutoffTime).Find(&list2)
-    for _, p := range list2 {
-        as.removePeerAndAB(p.Id)
+    var list []model.Peer
+    DB.Where("account != ? AND (lease_expire_at = 0 AND created_at < ? OR lease_expire_at > 0 AND lease_expire_at < ?)",
+        "__device__", cutoffTime, cutoff).Find(&list)
+    for _, p := range list {
+        DB.Where("id = ?", p.Id).Delete(&model.AddressBook{})
+        DB.Model(&model.Peer{}).Where("id = ?", p.Id).Update("account", "__device__")
     }
 }
 
@@ -326,4 +322,15 @@ func (as *ActivationService) CleanUsed() {
     cutoff := time.Now().Unix() - 30*86400
     DB.Where("used_at < ?", cutoff).Delete(&model.LeaseCodeUsed{})
     DB.Where("used_at < ?", cutoff).Delete(&model.HostCodeUsed{})
+}
+
+// CleanOfflinePeers 30天没入网的设备删掉
+func (as *ActivationService) CleanOfflinePeers() {
+    cutoff := time.Now().Unix() - 30*86400
+    var list []model.Peer
+    DB.Where("last_online_time > 0 AND last_online_time < ?", cutoff).Find(&list)
+    for _, p := range list {
+        DB.Where("id = ?", p.Id).Delete(&model.AddressBook{})
+        DB.Where("id = ?", p.Id).Delete(&model.Peer{})
+    }
 }

@@ -220,6 +220,7 @@ func InitGlobal() {
             service.AllService.ActivationService.CleanEmptyAccounts()
             service.AllService.ActivationService.CleanRemovedDevices()
             service.AllService.ActivationService.RefreshAccountColumn()
+            service.AllService.ActivationService.CleanOfflinePeers()
             time.Sleep(24 * time.Hour)
         }
     }()

@@ -81,7 +81,7 @@
         <el-button :icon="Setting" @click="showColumnSetting"></el-button>
       </div>
 
-      <el-table :data="displayList" v-loading="listRes.loading" border size="small" height="calc(100vh - 260px)" @selection-change="handleSelectionChange">
+      <el-table :data="displayList" v-loading="listRes.loading" border size="small" height="calc(100vh - 300px)" @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" align="center"/>
         <template v-for="c in visibleColumns.filter(cc => cc.visible)" :key="c">
           <el-table-column v-if="c.name==='id'" prop="id" label="ID" align="center" width="150">
@@ -295,11 +295,9 @@
           <el-input v-model="takeCodesForm.password" type="password" show-password />
         </el-form-item>
       </el-form>
-      <div v-if="takeCodesForm.result.length" style="margin-top:10px;max-height:300px;overflow-y:auto">
-        <div v-for="c in takeCodesForm.result" :key="c" style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-          <el-input :model-value="c" readonly style="width:320px" />
-          <el-button size="small" @click="copyCode(c)">复制</el-button>
-        </div>
+      <div v-if="takeCodesForm.result.length" style="margin-top:10px">
+        <el-input type="textarea" :rows="8" :model-value="takeCodesForm.result.join('\n')" readonly />
+        <el-button size="small" style="margin-top:6px" @click="copyCode(takeCodesForm.result.join('\n'))">复制全部</el-button>
       </div>
       <template #footer>
         <el-button @click="takeCodesVisible = false">关闭</el-button>
@@ -396,7 +394,7 @@
   
   // 获取激活码
   const takeCodesVisible = ref(false)
-  const takeCodesForm = reactive({ kind: 'lease', days: 7, n: 20, password: '', result: [] })
+  const takeCodesForm = reactive({ kind: 'lease', days: 7, n: 1, password: '', result: [] })
   const openTakeCodes = () => {
     takeCodesVisible.value = true
     takeCodesForm.result = []
@@ -820,8 +818,13 @@
 
 <style scoped lang="scss">
 .list-body {
-  :deep(.el-card__body) {
-    padding: 10px;
+  :deep(.el-scrollbar__bar.is-horizontal) {
+    height: 12px;
+    bottom: 2px;
+  }
+  :deep(.el-scrollbar__bar.is-horizontal .el-scrollbar__thumb) {
+    height: 100%;
+    opacity: 0.5;
   }
 }
 .list-query .el-select {
