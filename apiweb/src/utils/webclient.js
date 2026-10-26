@@ -12,7 +12,7 @@ const app = useAppStore()
 export const toWebClientLink = (row) => {
   //v2
   console.log(app.setting.rustdeskConfig)
-  window.open(`${app.setting.rustdeskConfig.api_server}/webclient2/#/${row.id}`)
+  window.open(`${app.setting.rustdeskConfig.api_server}/max/#/${row.id}`)
 }
 
 export async function getPeerSlat (id) {
@@ -94,5 +94,5 @@ export async function getPeerSlat (id) {
 }
 
 export function getV2ShareUrl (token) {
-  return `${app.setting.rustdeskConfig.api_server}/webclient2/#/?share_token=${token}`
+  return `${app.setting.rustdeskConfig.api_server}/max/#/?share_token=${token}`
 }
