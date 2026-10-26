@@ -123,7 +123,7 @@ func (r *Rustdesk) SendCmd(c *gin.Context) {
 	port := 0
 	switch rc.Target {
 	case model.ServerCmdTargetIdServer:
-		port = global.Config.Admin.IdServerPort - 1
+		port = 21115
 	case model.ServerCmdTargetRelayServer:
 		port = global.Config.Admin.RelayServerPort
 	}
