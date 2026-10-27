@@ -51,6 +51,12 @@ func (i *Index) Heartbeat(c *gin.Context) {
 	}
 	peer := service.AllService.PeerService.FindById(info.Id)
 	if peer == nil || peer.RowId == 0 {
+		service.AllService.PeerService.Create(&model.Peer{
+			Id:             info.Id,
+			Uuid:           info.Uuid,
+			LastOnlineTime: time.Now().Unix(),
+			LastOnlineIp:   c.ClientIP(),
+		})
 		c.JSON(http.StatusOK, gin.H{})
 		return
 	}

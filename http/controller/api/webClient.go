@@ -32,12 +32,14 @@ func (i *WebClient) ServerConfig(c *gin.Context) {
 		pp.FromAddressBook(ab)
 		peers[ab.Id] = pp
 	}
+	apiServer := "http://" + c.Request.Host
 	response.Success(
 		c,
 		gin.H{
-			"id_server": global.Config.Rustdesk.IdServer,
-			"key":       global.Config.Rustdesk.Key,
-			"peers":     peers,
+			"id_server":  global.Config.Rustdesk.IdServer,
+			"api_server": apiServer,
+			"key":        global.Config.Rustdesk.Key,
+			"peers":      peers,
 		},
 	)
 }
@@ -100,11 +102,13 @@ func (i *WebClient) SharedPeer(c *gin.Context) {
 // @Router /server-config-v2 [get]
 // @Security token
 func (i *WebClient) ServerConfigV2(c *gin.Context) {
+	apiServer := "http://" + c.Request.Host
 	response.Success(
 		c,
 		gin.H{
-			"id_server": global.Config.Rustdesk.IdServer,
-			"key":       global.Config.Rustdesk.Key,
+			"id_server":  global.Config.Rustdesk.IdServer,
+			"api_server": apiServer,
+			"key":        global.Config.Rustdesk.Key,
 		},
 	)
 }

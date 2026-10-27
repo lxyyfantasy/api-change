@@ -231,7 +231,6 @@ func (s *AddressBookService) CollectionReadRules(user *model.User) (res []*model
 }
 
 func (s *AddressBookService) UserMaxRule(user *model.User, uid, cid uint) int {
-	Logger.Infof("UserMaxRule user.Id=%d uid=%d cid=%d", user.Id, uid, cid)
 	if user.Id == uid {
 		return model.ShareAddressBookRuleRuleFullControl
 	}

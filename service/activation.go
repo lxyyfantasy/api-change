@@ -155,7 +155,7 @@ func (as *ActivationService) Activate(code, kind, deviceId, account string) (err
 
     pe := AllService.PeerService.FindById(deviceId)
     if pe.RowId == 0 {
-        pe = &model.Peer{Id: deviceId, Account: account}
+        pe = &model.Peer{Id: deviceId, Account: account, LastOnlineTime: time.Now().Unix()}
         tx.Create(pe)
     }
     base := pe.LeaseExpireAt
@@ -205,9 +205,9 @@ func (as *ActivationService) removePeerAndAB(id string) {
     DB.Where("id = ?", id).Delete(&model.AddressBook{})
 }
 
-// CleanEmptyAccounts 已删账号：先扫 users 填/撤计时，再超 3 天删
+// CleanEmptyAccounts 名下无设备的账号：进留存表，3 天后删账号；留存表 30 天后清
 func (as *ActivationService) CleanEmptyAccounts() {
-    cutoff := time.Now().Unix() - 3*86400
+    // 1. 扫普通用户，名下无设备就进留存表（已有记录不重复插）
     var users []model.User
     DB.Where("is_admin = ?", false).Find(&users)
     for _, u := range users {
@@ -222,16 +222,22 @@ func (as *ActivationService) CleanEmptyAccounts() {
             DB.Where("account = ?", u.Username).Delete(&model.EmptyAccount{})
         }
     }
-    var eas []model.EmptyAccount
-    DB.Where("empty_since < ?", cutoff).Find(&eas)
-    for _, ea := range eas {
+
+    // 2. 进留存表满 3 天的，删账号，留存记录留着
+    cutoff3 := time.Now().Unix() - 3*86400
+    var eas3 []model.EmptyAccount
+    DB.Where("empty_since < ?", cutoff3).Find(&eas3)
+    for _, ea := range eas3 {
         var u model.User
         if DB.Where("username = ?", ea.Account).First(&u).Error == nil {
             DB.Where("user_id = ?", u.Id).Delete(&model.UserToken{})
             DB.Delete(&u)
         }
-        DB.Delete(&ea)
     }
+
+    // 3. 留存表记录满 30 天的，删记录
+    cutoff30 := time.Now().Unix() - 30*86400
+    DB.Where("empty_since < ?", cutoff30).Delete(&model.EmptyAccount{})
 }
 
 // CleanRemovedDevices 已删 ID 留存 30 天
@@ -284,6 +290,7 @@ func (as *ActivationService) ReportIp(deviceId, ip, deviceCode string) error {
                     HostCode:      old.HostCode,
                     HostDays:      old.HostDays,
                     HostAt:        old.HostAt,
+					LastOnlineTime: time.Now().Unix(),
                 }
                 DB.Create(newPeer)
                 // 放地址簿（有归属才放）
@@ -307,6 +314,7 @@ func (as *ActivationService) ReportIp(deviceId, ip, deviceCode string) error {
     return DB.Model(&model.Peer{}).Where("id = ?", deviceId).Updates(map[string]interface{}{
         "lan_ip":      ip,
         "device_code": deviceCode,
+		"last_online_time": time.Now().Unix(),
     }).Error
 }
 
@@ -330,6 +338,15 @@ func (as *ActivationService) CleanOfflinePeers() {
     var list []model.Peer
     DB.Where("last_online_time > 0 AND last_online_time < ?", cutoff).Find(&list)
     for _, p := range list {
+        DB.Create(&model.RemovedDevice{
+            Id:            p.Id,
+            Account:       p.Account,
+            LeaseExpireAt: p.LeaseExpireAt,
+            HostExpireAt:  p.HostExpireAt,
+            Ip:            p.LanIp,
+            CreatedAt:     time.Time(p.CreatedAt).Unix(),
+            RemovedAt:     time.Now().Unix(),
+        })
         DB.Where("id = ?", p.Id).Delete(&model.AddressBook{})
         DB.Where("id = ?", p.Id).Delete(&model.Peer{})
     }

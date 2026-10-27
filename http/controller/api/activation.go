@@ -58,9 +58,20 @@ func (a *Activation) Report(c *gin.Context) {
 var _ = response.Success
 
 func (a *Activation) PeerAll(c *gin.Context) {
-    list := make([]*model.Peer, 0)
-    service.DB.Find(&list)
-    c.JSON(http.StatusOK, gin.H{"list": list})
+	list := make([]*model.Peer, 0)
+	service.DB.Find(&list)
+	for _, p := range list {
+		var ab model.AddressBook
+		account := "__device__"
+		if service.DB.Where("id = ?", p.Id).First(&ab).Error == nil && ab.UserId > 0 {
+			var u model.User
+			if service.DB.Where("id = ?", ab.UserId).First(&u).Error == nil {
+				account = u.Username
+			}
+		}
+		p.Account = account
+	}
+	c.JSON(http.StatusOK, gin.H{"list": list})
 }
 
 func (a *Activation) ServerConfig(c *gin.Context) {

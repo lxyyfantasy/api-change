@@ -6,12 +6,13 @@ import * as sha256 from "fast-sha256";
 import * as globals from "./globals";
 import { decompress, mapKey, sleep } from "./common";
 
-const PORT = 21116;
-// only the first is used to init `HOST`
-const HOSTS = [location.hostname];
+const HOSTS = [
+  "rs-sg.rustdesk.com",
+  "rs-cn.rustdesk.com",
+  "rs-us.rustdesk.com",
+];
 let HOST = localStorage.getItem("rendezvous-server") || HOSTS[0];
-//根据协议设置为ws或wss
-const SCHEMA=location.protocol=="https:"?"wss://":"ws://";
+const SCHEMA = "ws://";
 
 type MsgboxCallback = (type: string, title: string, text: string) => void;
 type DrawCallback = (data: Uint8Array) => void;
@@ -80,10 +81,10 @@ export default class Connection {
     this._ws = ws;
     this._id = id;
     console.log(
-      new Date() + ": Conntecting to rendezvoous server: " + uri + ", for " + id
+      new Date() + ": Connecting to rendezvous server: " + uri + ", for " + id
     );
     await ws.open();
-    console.log(new Date() + ": Connected to rendezvoous server");
+    console.log(new Date() + ": Connected to rendezvous server");
     const conn_type = rendezvous.ConnType.DEFAULT_CONN;
     const nat_type = rendezvous.NatType.SYMMETRIC;
     const punch_hole_request = rendezvous.PunchHoleRequest.fromPartial({
@@ -96,7 +97,7 @@ export default class Connection {
     ws.sendRendezvous({ punch_hole_request });
     const msg = (await ws.next()) as rendezvous.RendezvousMessage;
     ws.close();
-    console.log(new Date() + ": Got relay response", msg);
+    console.log(new Date() + ": Got relay response");
     const phr = msg.punch_hole_response;
     const rr = msg.relay_response;
     if (phr) {
@@ -133,7 +134,7 @@ export default class Connection {
     const pk = rr.pk;
     let uri = rr.relay_server;
     if (uri) {
-      uri = getrUriFromRs(uri, true, 2);
+      uri = getrUriFromRs(uri, true);
     } else {
       uri = getDefaultUri(true);
     }
@@ -233,14 +234,8 @@ export default class Connection {
   async msgLoop() {
     while (true) {
       const msg = (await this._ws?.next()) as message.Message;
-      // console.log("msg", msg);
       if (msg?.hash) {
         this._hash = msg?.hash;
-        const tmp = this.getOption('tmppwd')
-        if(!this._password && tmp){
-          this._password = Uint8Array.from(JSON.parse("[" + tmp + "]"));
-          this.setOption('tmppwd', '')
-        }
         if (!this._password)
           this.msgbox("input-password", "Password Required", "");
         this.login();
@@ -749,25 +744,13 @@ function getDefaultUri(isRelay: Boolean = false): string {
   const host = localStorage.getItem("custom-rendezvous-server");
   return getrUriFromRs(host || HOST, isRelay);
 }
-/*
-function isHttps() {
-  return window.location.protocol === "https:"
-}
-
-function domain(uri: string) {
-    return uri.indexOf(":") > 0 ? uri.split(":")[0] : uri
-}*/
 
 function getrUriFromRs(
   uri: string,
-  isRelay: Boolean = false,
-  roffset: number = 0
+  isRelay: Boolean = false
 ): string {
-    //v2
-  //if (isHttps()) return "wss://" + domain(uri) + "/ws/" + (isRelay ? "relay" : "id");
   if (uri.indexOf(":") > 0) {
     const tmp = uri.split(":");
-    const port = parseInt(tmp[1]);
     uri = tmp[0] + ":" + (isRelay ? 21119 : 21118);
   } else {
     uri += ":" + (isRelay ? 21119 : 21118);

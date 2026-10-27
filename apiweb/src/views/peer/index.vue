@@ -60,12 +60,13 @@
           <el-button type="primary" @click="toBatchAddToAB">{{ T('BatchAddToAB') }}</el-button>
           <el-button @click="openServerConfig">修改网络参数</el-button>
           <el-button @click="openTakeCodes">获取激活码</el-button>
-          <el-select v-model="listFilter" placeholder="筛选设备" style="width:140px;margin-left:8px" @change="applyListFilter">
+          <el-select v-model="listFilter" placeholder="筛选设备" style="width:160px;margin-left:8px" @change="applyListFilter">
             <el-option label="全部设备" value="all" />
             <el-option label="在线设备" value="online" />
             <el-option label="离线设备" value="offline" />
-            <el-option label="非游离设备" value="owned" />
-            <el-option label="游离设备" value="orphan" />
+            <el-option label="地址簿设备" value="owned" />
+            <el-option label="被控端游离设备" value="orphan_server" />
+            <el-option label="控制端设备" value="orphan_client" />
           </el-select>
           <el-select v-model="tableSelect" placeholder="留存表" style="width:160px;margin-left:8px" @change="openTableBySelect">
             <el-option label="已删ID留存" value="removed_devices" />
@@ -516,8 +517,10 @@
       arr = arr.filter(r => !r.last_online_time || (now - r.last_online_time) >= 60)
     } else if (listFilter.value === 'owned') {
       arr = arr.filter(r => r.account && r.account !== '__device__')
-    } else if (listFilter.value === 'orphan') {
-      arr = arr.filter(r => r.account === '__device__')
+    } else if (listFilter.value === 'orphan_server') {
+      arr = arr.filter(r => (!r.account || r.account === '__device__') && r.lan_ip)
+    } else if (listFilter.value === 'orphan_client') {
+      arr = arr.filter(r => (!r.account || r.account === '__device__') && !r.lan_ip)
     }
     displayList.value = arr
   }

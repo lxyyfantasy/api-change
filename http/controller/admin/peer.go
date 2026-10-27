@@ -60,6 +60,9 @@ func (ct *Peer) Create(c *gin.Context) {
 		return
 	}
 	p := f.ToPeer()
+	if p.LastOnlineTime == 0 {
+	    p.LastOnlineTime = time.Now().Unix()
+	}
 	err := service.AllService.PeerService.Create(p)
 	if err != nil {
 		response.Fail(c, 101, response.TranslateMsg(c, "OperationFailed")+err.Error())
