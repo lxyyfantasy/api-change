@@ -41,13 +41,13 @@ func (ps *PeerService) UuidBindUserId(deviceId string, uuid string, userId uint)
         ps.Update(peer)
     } else {
         // 不存在则创建
-        /*if deviceId != "" {
+        if deviceId != "" {
             DB.Create(&model.Peer{
                 Id:     deviceId,
                 Uuid:   uuid,
                 UserId: userId,
             })
-        }*/
+        }
     }
 }
 

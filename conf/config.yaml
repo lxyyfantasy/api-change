@@ -59,7 +59,7 @@ proxy:
   enable: false
   host: "http://127.0.0.1:1080"
 jwt:
-  key: "rustdesk1029"
+  key: "rustdesk1029gtw653tf56UUdfgH690SWxdsESXfgtg435f78g"
   expire-duration: 26280h
 ldap:
   enable: false

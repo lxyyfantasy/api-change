@@ -31,10 +31,6 @@ type Ab struct {
 // @Security BearerAuth
 func (a *Ab) Ab(c *gin.Context) {
     user := service.AllService.UserService.CurUser(c)
-    if user == nil || !service.AllService.UserService.IsAdmin(user) {
-        response.Error(c, response.TranslateMsg(c, "NoAccess"))
-        return
-    }
 
     al := service.AllService.AddressBookService.ListByUserIdAndCollectionId(user.Id, 0, 1, 1000)
     tags := service.AllService.TagService.ListByUserIdAndCollectionId(user.Id, 0)
@@ -340,10 +336,6 @@ func (a *Ab) TagDel(c *gin.Context) {
 // @Security BearerAuth
 func (a *Ab) Personal(c *gin.Context) {
     user := service.AllService.UserService.CurUser(c)
-    if user == nil || !service.AllService.UserService.IsAdmin(user) {
-        c.JSON(http.StatusOK, nil)
-        return
-    }
     /**
     guid = json['guid'] ?? '',
            name = json['name'] ?? '',
