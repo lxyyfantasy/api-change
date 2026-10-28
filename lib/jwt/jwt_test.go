@@ -1,9 +1,9 @@
 package jwt
 
 import (
-	"fmt"
-	"testing"
-	"time"
+    "fmt"
+    "testing"
+    "time"
 )
 
 var pk = `-----BEGIN RSA PRIVATE KEY-----
@@ -34,47 +34,43 @@ Hj4yO4j5LOWDMTgDcLsZTxbGiTzkNc/HghrNIevDAQdgjJQNl84zDjyyCA4r/MA7
 bYJTtYj8q6J0EDbRdT9b6hMclyzjNXdx2loJxR0R8WUeL1lDEPq8
 -----END RSA PRIVATE KEY-----`
 
-// 测试token生成
 func TestGenerateToken(t *testing.T) {
-	jwtService := NewJwt(pk, time.Second*1000)
-	token := jwtService.GenerateToken(1)
-	if token == "" {
-		t.Fatal("token生成失败")
-	}
-	fmt.Println(pk, token)
+    jwtService := NewJwt(pk, time.Second*1000)
+    token := jwtService.GenerateToken(1, false)
+    if token == "" {
+        t.Fatal("token生成失败")
+    }
+    fmt.Println(pk, token)
 }
 
-// 测试token解析
 func TestParseToken(t *testing.T) {
-	jwtService := NewJwt(pk, time.Second*1000)
-	token := jwtService.GenerateToken(999)
-	if token == "" {
-		t.Fatal("token生成失败")
-	}
-	uid, err := jwtService.ParseToken(token)
-	if err != nil {
-
-		t.Fatal("token解析失败", err)
-	}
-	if uid != 999 {
-		t.Fatal("token解析失败")
-	}
+    jwtService := NewJwt(pk, time.Second*1000)
+    token := jwtService.GenerateToken(999, true)
+    if token == "" {
+        t.Fatal("token生成失败")
+    }
+    claims, err := jwtService.ParseToken(token)
+    if err != nil {
+        t.Fatal("token解析失败", err)
+    }
+    if claims == nil || claims.UserId != 999 || !claims.IsAdmin {
+        t.Fatal("token解析失败")
+    }
 }
 
 func BenchmarkJwtService_GenerateToken(b *testing.B) {
-	jwtService := NewJwt(pk, time.Second*1000)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		jwtService.GenerateToken(999)
-	}
+    jwtService := NewJwt(pk, time.Second*1000)
+    b.ResetTimer()
+    for i := 0; i < b.N; i++ {
+        jwtService.GenerateToken(999, false)
+    }
 }
 
 func BenchmarkJwtService_ParseToken(b *testing.B) {
-	jwtService := NewJwt(pk, time.Second*1000)
-	token := jwtService.GenerateToken(999)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, _ = jwtService.ParseToken(token)
-	}
-
+    jwtService := NewJwt(pk, time.Second*1000)
+    token := jwtService.GenerateToken(999, false)
+    b.ResetTimer()
+    for i := 0; i < b.N; i++ {
+        _, _ = jwtService.ParseToken(token)
+    }
 }
