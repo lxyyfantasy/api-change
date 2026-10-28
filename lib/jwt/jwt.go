@@ -12,7 +12,8 @@ type Jwt struct {
 }
 
 type UserClaims struct {
-	UserId uint `json:"user_id"`
+	UserId  uint `json:"user_id"`
+	IsAdmin bool `json:"is_admin"`
 	jwt.RegisteredClaims
 }
 
@@ -23,14 +24,15 @@ func NewJwt(key string, tokenExpireDuration time.Duration) *Jwt {
 	}
 }
 
-func (s *Jwt) GenerateToken(userId uint) string {
+func (s *Jwt) GenerateToken(userId uint, isAdmin bool) string {
 	if len(s.Key) == 0 {
 		fmt.Println("jwt key is nil")
 		return ""
 	}
 	t := jwt.NewWithClaims(jwt.SigningMethodHS256,
 		UserClaims{
-			UserId: userId,
+			UserId:  userId,
+			IsAdmin: isAdmin,
 			RegisteredClaims: jwt.RegisteredClaims{
 				ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.TokenExpireDuration)),
 			},
@@ -43,15 +45,15 @@ func (s *Jwt) GenerateToken(userId uint) string {
 	return token
 }
 
-func (s *Jwt) ParseToken(tokenString string) (uint, error) {
+func (s *Jwt) ParseToken(tokenString string) (*UserClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &UserClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return s.Key, nil
 	})
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	if claims, ok := token.Claims.(*UserClaims); ok && token.Valid {
-		return claims.UserId, nil
+		return claims, nil
 	}
-	return 0, err
+	return nil, err
 }

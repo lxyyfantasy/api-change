@@ -1,16 +1,17 @@
 package service
 
 import (
-    "errors"
-    "math/rand"
-    "strconv"
-    "strings"
-    "time"
+	"errors"
+	"math/rand"
+	"strconv"
+	"strings"
+	"time"
 
-    "github.com/gin-gonic/gin"
-    "github.com/lejianwen/rustdesk-api/v2/model"
-    "github.com/lejianwen/rustdesk-api/v2/utils"
-    "gorm.io/gorm"
+	"github.com/gin-gonic/gin"
+	"github.com/lejianwen/rustdesk-api/v2/lib/jwt"
+	"github.com/lejianwen/rustdesk-api/v2/model"
+	"github.com/lejianwen/rustdesk-api/v2/utils"
+	"gorm.io/gorm"
 )
 
 type UserService struct {
@@ -87,10 +88,10 @@ func (us *UserService) InfoByAccessToken(token string) (*model.User, *model.User
 
 // GenerateToken 生成token
 func (us *UserService) GenerateToken(u *model.User) string {
-    if len(Jwt.Key) > 0 {
-        return Jwt.GenerateToken(u.Id)
-    }
-    return utils.Md5(u.Username + time.Now().String())
+	if len(Jwt.Key) > 0 {
+		return Jwt.GenerateToken(u.Id, us.IsAdmin(u))
+	}
+	return utils.Md5(u.Username + time.Now().String())
 }
 
 // Login 登录
@@ -513,8 +514,8 @@ func (us *UserService) BatchDeleteUserToken(ids []uint) error {
     return DB.Where("id in ?", ids).Delete(&model.UserToken{}).Error
 }
 
-func (us *UserService) VerifyJWT(token string) (uint, error) {
-    return Jwt.ParseToken(token)
+func (us *UserService) VerifyJWT(token string) (*jwt.UserClaims, error) {
+	return Jwt.ParseToken(token)
 }
 
 // IsUsernameExists 判断用户名是否存在, it will check the internal database and LDAP(if enabled)

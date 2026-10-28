@@ -33,8 +33,8 @@ func RustAuth() gin.HandlerFunc {
 
 		//检查是否设置了jwt key
 		if len(global.Jwt.Key) > 0 {
-			uid, _ := service.AllService.UserService.VerifyJWT(token)
-			if uid == 0 {
+			claims, _ := service.AllService.UserService.VerifyJWT(token)
+			if claims == nil || claims.UserId == 0 {
 				c.JSON(401, gin.H{
 					"error": "Unauthorized",
 				})
