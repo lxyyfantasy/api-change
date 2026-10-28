@@ -5,7 +5,7 @@ const CACHE_NAME = 'flutter-app-cache';
 
 const RESOURCES = {"yarn.lock": "dd07d22cbf9a738bdb68b591bc1bc742",
 "version.json": "8ccb9c298b649bda8ee709e36f3e2e58",
-"js/dist/index.js": "c15da0c81d5561a105af110f701a4e02",
+"js/dist/index.js": "c1682e898d516bbd1533a38732c466e2",
 "js/dist/vendor.js": "3a42e868c0f48d86f518510aa9b23ec0",
 "js/dist/index.css": "325598511be4c5926c2e5bd308a3ea4c",
 "js/dist/index.html": "85716a9a0538b47b808045f6923bc8d8",
@@ -14,7 +14,7 @@ const RESOURCES = {"yarn.lock": "dd07d22cbf9a738bdb68b591bc1bc742",
 "js/src/rendezvous.ts": "00670560741526c8be38e54903bbd2e5",
 "js/src/message.ts": "69c9feb7e786b3a70c7ef02e6d5a8ce3",
 "js/src/main.ts": "8b48889fa8ee4e464a8e5580c386e494",
-"js/src/connection.ts": "d246493f5e6a89d8efaad9c4441eae50",
+"js/src/connection.ts": "7a7586f4d1725ae7bcbdf40cbe266ebc",
 "js/src/websock.ts": "b8cb6466b6010089d2e419e7ff403890",
 "js/src/vite-env.d.ts": "db266f67270495e5478804f291146e99",
 "js/src/common.ts": "5b4db4beb519ea747aa575116dd09f32",
@@ -1157,8 +1157,8 @@ const RESOURCES = {"yarn.lock": "dd07d22cbf9a738bdb68b591bc1bc742",
 "libopus.js": "b58c2084b852e6df5ec89fd16adcf920",
 "web_deps.tar.gz": "c951441c06a9a9b7b6136c6d459e3899",
 "libopus.wasm": "b8801d4a953d58e739fd9d25134467d3",
-"index.html": "dce05d38f15f8895c57b60c94c9835be",
-"/": "dce05d38f15f8895c57b60c94c9835be",
+"index.html": "8a74d4780626481e1271babd8a6fe7bd",
+"/": "8a74d4780626481e1271babd8a6fe7bd",
 "main.dart.js": "b803f112ca695dcfe00bd95996c81c85"};
 // The application shell files that are downloaded before a service worker can
 // start.
