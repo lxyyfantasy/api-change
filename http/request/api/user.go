@@ -51,3 +51,16 @@ type PeerListQuery struct {
 	Status     int    `json:"status" form:"status" label:"状态"`
 	Accessible string `json:"accessible" form:"accessible"`
 }
+
+// RegisterForm 客户端 /register 注册请求
+type RegisterForm struct {
+	Username string `json:"username" validate:"required,gte=2,lte=32" label:"用户名"`
+	Password string `json:"password" validate:"required,gte=4,lte=32" label:"密码"`
+}
+
+// ChangePasswordForm 客户端 /change-password 修改密码请求
+type ChangePasswordForm struct {
+	Username    string `json:"username" validate:"required" label:"用户名"`
+	OldPassword string `json:"old_password" validate:"required" label:"旧密码"`
+	NewPassword string `json:"new_password" validate:"required,gte=4,lte=32" label:"新密码"`
+}

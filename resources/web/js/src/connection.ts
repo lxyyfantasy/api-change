@@ -92,6 +92,7 @@ export default class Connection {
     });
     ws.sendRendezvous({ punch_hole_request });
     const msg = (await ws.next()) as rendezvous.RendezvousMessage;
+	console.log("RENDEZVOUS MSG:", JSON.stringify(msg));
     ws.close();
     console.log(new Date() + ": Got relay response");
     const phr = msg.punch_hole_response;

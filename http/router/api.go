@@ -21,6 +21,15 @@ func ApiInit(g *gin.Engine) {
     // 加载 HTML 模板
     g.LoadHTMLGlob("resources/templates/*")
 
+    // Flutter 客户端账号接口（根路径，无 /api 前缀，适配 AccountApi）
+    {
+        u := &api.User{}
+        // 注册：公开，是否可用由 app.register 控制（与网页端同一开关）
+        g.POST("/register", u.Register)
+        // 改密码：公开，凭 username + old_password 校验（与客户端 AccountApi 一致）
+        g.POST("/change-password", u.ChangePassword)
+    }
+    
     frg := g.Group("/api")
 
     {
@@ -33,7 +42,7 @@ func ApiInit(g *gin.Engine) {
             ac := &api.Activation{}
             frg.POST("/activate", ac.Activate)
             frg.POST("/report", ac.Report)
-			frg.GET("/device/info", ac.DeviceInfo)
+            frg.GET("/device/info", ac.DeviceInfo)
             frg.GET("/peer/all", ac.PeerAll)
             frg.GET("/server-config", ac.ServerConfig)
         }
