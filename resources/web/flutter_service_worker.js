@@ -1157,9 +1157,9 @@ const RESOURCES = {"yarn.lock": "dd07d22cbf9a738bdb68b591bc1bc742",
 "libopus.js": "b58c2084b852e6df5ec89fd16adcf920",
 "web_deps.tar.gz": "c951441c06a9a9b7b6136c6d459e3899",
 "libopus.wasm": "b8801d4a953d58e739fd9d25134467d3",
-"index.html": "a5322bd3fbe0052501d2af37a7f86f90",
-"/": "a5322bd3fbe0052501d2af37a7f86f90",
-"main.dart.js": "66061f0ab5d8b2effffe6d51488f57d8"};
+"index.html": "c462bb6e4060049c56e08dcf1ae52570",
+"/": "c462bb6e4060049c56e08dcf1ae52570",
+"main.dart.js": "535c3b91c41c33b4988762c8647de130"};
 // The application shell files that are downloaded before a service worker can
 // start.
 const CORE = ["main.dart.js",
