@@ -6,12 +6,16 @@ import * as sha256 from "fast-sha256";
 import * as globals from "./globals";
 import { decompress, mapKey, sleep } from "./common";
 
+const PORT = 21116;
+// only the first is used to init `HOST`
 const HOSTS = [location.hostname];
 let HOST = localStorage.getItem("rendezvous-server") || HOSTS[0];
-const SCHEMA = location.protocol === "https:" ? "wss://" : "ws://";
+//根据协议设置为ws或wss
+const SCHEMA=location.protocol=="https:"?"wss://":"ws://";
 
 type MsgboxCallback = (type: string, title: string, text: string) => void;
 type DrawCallback = (data: Uint8Array) => void;
+//const cursorCanvas = document.createElement("canvas");
 
 export default class Connection {
   _msgs: any[];
@@ -27,6 +31,7 @@ export default class Connection {
   _password: Uint8Array | undefined;
   _options: any;
   _videoTestSpeed: number[];
+  //_cursors: { [name: number]: any };
 
   constructor() {
     this._msgbox = globals.msgbox;
@@ -34,6 +39,7 @@ export default class Connection {
     this._msgs = [];
     this._id = "";
     this._videoTestSpeed = [0, 0];
+    //this._cursors = {};
   }
 
   async start(id: string) {
@@ -74,10 +80,10 @@ export default class Connection {
     this._ws = ws;
     this._id = id;
     console.log(
-      new Date() + ": Connecting to rendezvous server: " + uri + ", for " + id
+      new Date() + ": Conntecting to rendezvoous server: " + uri + ", for " + id
     );
     await ws.open();
-    console.log(new Date() + ": Connected to rendezvous server");
+    console.log(new Date() + ": Connected to rendezvoous server");
     const conn_type = rendezvous.ConnType.DEFAULT_CONN;
     const nat_type = rendezvous.NatType.SYMMETRIC;
     const punch_hole_request = rendezvous.PunchHoleRequest.fromPartial({
@@ -90,7 +96,7 @@ export default class Connection {
     ws.sendRendezvous({ punch_hole_request });
     const msg = (await ws.next()) as rendezvous.RendezvousMessage;
     ws.close();
-    console.log(new Date() + ": Got relay response");
+    console.log(new Date() + ": Got relay response", msg);
     const phr = msg.punch_hole_response;
     const rr = msg.relay_response;
     if (phr) {
@@ -127,7 +133,7 @@ export default class Connection {
     const pk = rr.pk;
     let uri = rr.relay_server;
     if (uri) {
-      uri = getrUriFromRs(uri, true);
+      uri = getrUriFromRs(uri, true, 2);
     } else {
       uri = getDefaultUri(true);
     }
@@ -171,6 +177,7 @@ export default class Connection {
         );
     }
     if (!pk) {
+      // send an empty message out in case server is setting up secure and waiting for first message
       const public_key = message.PublicKey.fromPartial({});
       this._ws?.sendMessage({ public_key });
       return;
@@ -187,6 +194,7 @@ export default class Connection {
       signedId = await globals.verify(signedId.id, Uint8Array.from(pk!));
     } catch (e) {
       console.error(e);
+      // fall back to non-secure connection in case pk mismatch
       console.error("pk mismatch, fall back to non-secure");
       const public_key = message.PublicKey.fromPartial({});
       this._ws?.sendMessage({ public_key });
@@ -225,13 +233,20 @@ export default class Connection {
   async msgLoop() {
     while (true) {
       const msg = (await this._ws?.next()) as message.Message;
+      // console.log("msg", msg);
       if (msg?.hash) {
         this._hash = msg?.hash;
+        const tmp = this.getOption('tmppwd')
+        if(!this._password && tmp){
+          this._password = Uint8Array.from(JSON.parse("[" + tmp + "]"));
+          this.setOption('tmppwd', '')
+        }
         if (!this._password)
           this.msgbox("input-password", "Password Required", "");
         this.login();
       } else if (msg?.test_delay) {
         const test_delay = msg?.test_delay;
+        console.log(test_delay);
         if (!test_delay.from_client) {
           this._ws?.sendMessage({ test_delay });
         }
@@ -265,12 +280,36 @@ export default class Connection {
         } catch (e) {
           console.error(e);
         }
+        // globals.pushEvent("clipboard", cb);
       } else if (msg?.cursor_data) {
         const cd = msg?.cursor_data;
         const c = await decompress(cd.colors);
         if (!c) continue;
         cd.colors = c;
         globals.pushEvent("cursor_data", cd);
+        /*
+        let ctx = cursorCanvas.getContext("2d");
+        cursorCanvas.width = cd.width;
+        cursorCanvas.height = cd.height;
+        let imgData = new ImageData(
+          new Uint8ClampedArray(c),
+          cd.width,
+          cd.height
+        );
+        ctx?.clearRect(0, 0, cd.width, cd.height);
+        ctx?.putImageData(imgData, 0, 0);
+        let url = cursorCanvas.toDataURL();
+        const img = document.createElement("img");
+        img.src = url;
+        this._cursors[cd.id] = img;
+        //cursorCanvas.width /= 2.;
+        //cursorCanvas.height /= 2.;
+        //ctx?.drawImage(img, cursorCanvas.width, cursorCanvas.height);
+        url = cursorCanvas.toDataURL();
+        document.body.style.cursor =
+          "url(" + url + ")" + cd.hotx + " " + cd.hoty + ", default";
+        console.log(document.body.style.cursor);
+        */
       } else if (msg?.cursor_id) {
         globals.pushEvent("cursor_id", { id: msg?.cursor_id });
       } else if (msg?.cursor_position) {
@@ -339,8 +378,8 @@ export default class Connection {
   _sendLoginMessage(password: Uint8Array | undefined = undefined) {
     const login_request = message.LoginRequest.fromPartial({
       username: this._id!,
-      my_id: "web",
-      my_name: "web",
+      my_id: "web", // to-do
+      my_name: "web", // to-do
       password,
       option: this.getOptionMessage(),
       video_ack_required: true,
@@ -353,12 +392,30 @@ export default class Connection {
     const msg = message.OptionMessage.fromPartial({});
     const q = this.getImageQualityEnum(this.getImageQuality(), true);
     const yes = message.OptionMessage_BoolOption.Yes;
-    if (q != undefined) { msg.image_quality = q; n += 1; }
-    if (this._options["show-remote-cursor"]) { msg.show_remote_cursor = yes; n += 1; }
-    if (this._options["lock-after-session-end"]) { msg.lock_after_session_end = yes; n += 1; }
-    if (this._options["privacy-mode"]) { msg.privacy_mode = yes; n += 1; }
-    if (this._options["disable-audio"]) { msg.disable_audio = yes; n += 1; }
-    if (this._options["disable-clipboard"]) { msg.disable_clipboard = yes; n += 1; }
+    if (q != undefined) {
+      msg.image_quality = q;
+      n += 1;
+    }
+    if (this._options["show-remote-cursor"]) {
+      msg.show_remote_cursor = yes;
+      n += 1;
+    }
+    if (this._options["lock-after-session-end"]) {
+      msg.lock_after_session_end = yes;
+      n += 1;
+    }
+    if (this._options["privacy-mode"]) {
+      msg.privacy_mode = yes;
+      n += 1;
+    }
+    if (this._options["disable-audio"]) {
+      msg.disable_audio = yes;
+      n += 1;
+    }
+    if (this._options["disable-clipboard"]) {
+      msg.disable_clipboard = yes;
+      n += 1;
+    }
     return n > 0 ? msg : undefined;
   }
 
@@ -388,7 +445,12 @@ export default class Connection {
             this._videoTestSpeed[1] += elapsed;
             this._videoTestSpeed[0] += 1;
             if (this._videoTestSpeed[0] >= 30) {
-              console.log("video decoder: " + parseInt("" + this._videoTestSpeed[1] / this._videoTestSpeed[0]));
+              console.log(
+                "video decoder: " +
+                  parseInt(
+                    "" + this._videoTestSpeed[1] / this._videoTestSpeed[0]
+                  )
+              );
               this._videoTestSpeed = [0, 0];
             }
           }
@@ -427,7 +489,9 @@ export default class Connection {
     const l = this.getOption("lock-after-session-end");
     const a = !!this.getOption("auto-login");
     const p = this.getOption("os-password");
-    if (p && l && a) return p;
+    if (p && l && a) {
+      return p;
+    }
     return "";
   }
 
@@ -441,12 +505,20 @@ export default class Connection {
       globals.pushEvent("chat", { text: misc.chat_message.text });
     } else if (misc.permission_info) {
       const p = misc.permission_info;
+      console.info("Change permission " + p.permission + " -> " + p.enabled);
       let name;
       switch (p.permission) {
-        case message.PermissionInfo_Permission.Keyboard: name = "keyboard"; break;
-        case message.PermissionInfo_Permission.Clipboard: name = "clipboard"; break;
-        case message.PermissionInfo_Permission.Audio: name = "audio"; break;
-        default: return true;
+        case message.PermissionInfo_Permission.Keyboard:
+          name = "keyboard";
+          break;
+        case message.PermissionInfo_Permission.Clipboard:
+          name = "clipboard";
+          break;
+        case message.PermissionInfo_Permission.Audio:
+          name = "audio";
+          break;
+        default:
+          return;
       }
       globals.pushEvent("permission", { [name]: p.enabled });
     } else if (misc.switch_display) {
@@ -460,10 +532,17 @@ export default class Connection {
     return true;
   }
 
-  getRemember(): Boolean { return this._options["remember"] || false; }
-  setRemember(v: Boolean) { this.setOption("remember", v); }
+  getRemember(): Boolean {
+    return this._options["remember"] || false;
+  }
 
-  getOption(name: string): any { return this._options[name]; }
+  setRemember(v: Boolean) {
+    this.setOption("remember", v);
+  }
+
+  getOption(name: string): any {
+    return this._options[name];
+  }
 
   setOption(name: string, value: any) {
     if (value == undefined) {
@@ -477,13 +556,29 @@ export default class Connection {
     localStorage.setItem("peers", JSON.stringify(peers));
   }
 
-  inputKey(name: string, down: boolean, press: boolean, alt: Boolean, ctrl: Boolean, shift: Boolean, command: Boolean) {
+  inputKey(
+    name: string,
+    down: boolean,
+    press: boolean,
+    alt: Boolean,
+    ctrl: Boolean,
+    shift: Boolean,
+    command: Boolean
+  ) {
     const key_event = mapKey(name, globals.isDesktop());
     if (!key_event) return;
-    if (alt && (name == "VK_MENU" || name == "RAlt")) alt = false;
-    if (ctrl && (name == "VK_CONTROL" || name == "RControl")) ctrl = false;
-    if (shift && (name == "VK_SHIFT" || name == "RShift")) shift = false;
-    if (command && (name == "Meta" || name == "RWin")) command = false;
+    if (alt && (name == "VK_MENU" || name == "RAlt")) {
+      alt = false;
+    }
+    if (ctrl && (name == "VK_CONTROL" || name == "RControl")) {
+      ctrl = false;
+    }
+    if (shift && (name == "VK_SHIFT" || name == "RShift")) {
+      shift = false;
+    }
+    if (command && (name == "Meta" || name == "RWin")) {
+      command = false;
+    }
     key_event.down = down;
     key_event.press = press;
     key_event.modifiers = this.getMod(alt, ctrl, shift, command);
@@ -541,9 +636,19 @@ export default class Connection {
     return mod;
   }
 
-  inputMouse(mask: number = 0, x: number = 0, y: number = 0, alt: Boolean = false, ctrl: Boolean = false, shift: Boolean = false, command: Boolean = false) {
+  inputMouse(
+    mask: number = 0,
+    x: number = 0,
+    y: number = 0,
+    alt: Boolean = false,
+    ctrl: Boolean = false,
+    shift: Boolean = false,
+    command: Boolean = false
+  ) {
     const mouse_event = message.MouseEvent.fromPartial({
-      mask, x, y,
+      mask,
+      x,
+      y,
       modifiers: this.getMod(alt, ctrl, shift, command),
     });
     this._ws?.sendMessage({ mouse_event });
@@ -552,30 +657,56 @@ export default class Connection {
   toggleOption(name: string) {
     const v = !this._options[name];
     const option = message.OptionMessage.fromPartial({});
-    const v2 = v ? message.OptionMessage_BoolOption.Yes : message.OptionMessage_BoolOption.No;
+    const v2 = v
+      ? message.OptionMessage_BoolOption.Yes
+      : message.OptionMessage_BoolOption.No;
     switch (name) {
-      case "show-remote-cursor": option.show_remote_cursor = v2; break;
-      case "disable-audio": option.disable_audio = v2; break;
-      case "disable-clipboard": option.disable_clipboard = v2; break;
-      case "lock-after-session-end": option.lock_after_session_end = v2; break;
-      case "privacy-mode": option.privacy_mode = v2; break;
-      case "block-input": option.block_input = message.OptionMessage_BoolOption.Yes; break;
-      case "unblock-input": option.block_input = message.OptionMessage_BoolOption.No; break;
-      default: return;
+      case "show-remote-cursor":
+        option.show_remote_cursor = v2;
+        break;
+      case "disable-audio":
+        option.disable_audio = v2;
+        break;
+      case "disable-clipboard":
+        option.disable_clipboard = v2;
+        break;
+      case "lock-after-session-end":
+        option.lock_after_session_end = v2;
+        break;
+      case "privacy-mode":
+        option.privacy_mode = v2;
+        break;
+      case "block-input":
+        option.block_input = message.OptionMessage_BoolOption.Yes;
+        break;
+      case "unblock-input":
+        option.block_input = message.OptionMessage_BoolOption.No;
+        break;
+      default:
+        return;
     }
     if (name.indexOf("block-input") < 0) this.setOption(name, v);
     const misc = message.Misc.fromPartial({ option });
     this._ws?.sendMessage({ misc });
   }
 
-  getImageQuality() { return this.getOption("image-quality"); }
+  getImageQuality() {
+    return this.getOption("image-quality");
+  }
 
-  getImageQualityEnum(value: string, ignoreDefault: Boolean): message.ImageQuality | undefined {
+  getImageQualityEnum(
+    value: string,
+    ignoreDefault: Boolean
+  ): message.ImageQuality | undefined {
     switch (value) {
-      case "low": return message.ImageQuality.Low;
-      case "best": return message.ImageQuality.Best;
-      case "balanced": return ignoreDefault ? undefined : message.ImageQuality.Balanced;
-      default: return undefined;
+      case "low":
+        return message.ImageQuality.Low;
+      case "best":
+        return message.ImageQuality.Best;
+      case "balanced":
+        return ignoreDefault ? undefined : message.ImageQuality.Balanced;
+      default:
+        return undefined;
     }
   }
 
@@ -593,18 +724,50 @@ export default class Connection {
     loadVp9((decoder: any) => {
       this._videoDecoder = decoder;
       console.log("vp9 loaded");
+      console.log(decoder);
     });
   }
 }
+
+function testDelay() {
+  var nearest = "";
+  HOSTS.forEach((host) => {
+    const now = new Date().getTime();
+    new Websock(getrUriFromRs(host), true).open().then(() => {
+      console.log("latency of " + host + ": " + (new Date().getTime() - now));
+      if (!nearest) {
+        HOST = host;
+        localStorage.setItem("rendezvous-server", host);
+      }
+    });
+  });
+}
+
+testDelay();
 
 function getDefaultUri(isRelay: Boolean = false): string {
   const host = localStorage.getItem("custom-rendezvous-server");
   return getrUriFromRs(host || HOST, isRelay);
 }
+/*
+function isHttps() {
+  return window.location.protocol === "https:"
+}
 
-function getrUriFromRs(uri: string, isRelay: Boolean = false): string {
+function domain(uri: string) {
+    return uri.indexOf(":") > 0 ? uri.split(":")[0] : uri
+}*/
+
+function getrUriFromRs(
+  uri: string,
+  isRelay: Boolean = false,
+  roffset: number = 0
+): string {
+    //v2
+  //if (isHttps()) return "wss://" + domain(uri) + "/ws/" + (isRelay ? "relay" : "id");
   if (uri.indexOf(":") > 0) {
     const tmp = uri.split(":");
+    const port = parseInt(tmp[1]);
     uri = tmp[0] + ":" + (isRelay ? 21119 : 21118);
   } else {
     uri += ":" + (isRelay ? 21119 : 21118);
