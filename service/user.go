@@ -110,9 +110,12 @@ func (us *UserService) Login(u *model.User, llog *model.LoginLog) *model.UserTok
     llog.UserTokenId = ut.UserId
     DB.Create(llog)
     if llog.Uuid != "" {
-        AllService.PeerService.UuidBindUserId(llog.DeviceId, llog.Uuid, u.Id)
-    }
-    return ut
+		AllService.PeerService.UuidBindUserId(llog.DeviceId, llog.Uuid, u.Id)
+	}
+	if llog.DeviceId != "" {
+		DB.Model(&model.Peer{}).Where("id = ?", llog.DeviceId).Update("category", "控制端")
+	}
+	return ut
 }
 
 // CurUser 获取当前用户

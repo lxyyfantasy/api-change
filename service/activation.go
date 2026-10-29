@@ -6,7 +6,6 @@ import (
     "time"
 
     "github.com/lejianwen/rustdesk-api/v2/model"
-    "github.com/lejianwen/rustdesk-api/v2/model/custom_types"
 )
 
 type ActivationService struct {
@@ -268,54 +267,63 @@ func (as *ActivationService) RefreshAccountColumn() {
 
 // ReportIp 上报 IP + 识别码，识别码变了则迁移设备
 func (as *ActivationService) ReportIp(deviceId, ip, deviceCode string) error {
-    if deviceCode != "" {
-        var old model.Peer
-        DB.Where("device_code = ?", deviceCode).First(&old)
-        if old.RowId > 0 && old.Id != deviceId {
-            var exist model.Peer
-            if DB.Where("id = ?", deviceId).First(&exist).Error != nil {
-                // 新 ID 不存在，复制老信息
-                newPeer := &model.Peer{
-                    Id:            deviceId,
-                    Account:       old.Account,
-                    LanIp:         ip,
-                    DeviceCode:    deviceCode,
-                    LeaseExpireAt: old.LeaseExpireAt,
-                    LeaseUser:     old.LeaseUser,
-                    LeaseCode:     old.LeaseCode,
-                    LeaseDays:     old.LeaseDays,
-                    LeaseAt:       old.LeaseAt,
-                    HostExpireAt:  old.HostExpireAt,
-                    HostUser:      old.HostUser,
-                    HostCode:      old.HostCode,
-                    HostDays:      old.HostDays,
-                    HostAt:        old.HostAt,
+	if deviceCode != "" {
+		var old model.Peer
+		DB.Where("device_code = ?", deviceCode).First(&old)
+		if old.RowId > 0 && old.Id != deviceId {
+			var exist model.Peer
+			if DB.Where("id = ?", deviceId).First(&exist).Error != nil {
+				// 新 ID 不存在，复制老信息
+				newPeer := &model.Peer{
+					Id:             deviceId,
+					Cpu:            old.Cpu,
+					Hostname:       old.Hostname,
+					Memory:         old.Memory,
+					Os:             old.Os,
+					Username:       old.Username,
+					Uuid:           old.Uuid,
+					Version:        old.Version,
+					UserId:         old.UserId,
+					GroupId:        old.GroupId,
+					Alias:          old.Alias,
+					Account:        old.Account,
+					Category:       "被控端",
+					LanIp:          ip,
+					DeviceCode:     deviceCode,
+					LeaseExpireAt:  old.LeaseExpireAt,
+					LeaseUser:      old.LeaseUser,
+					LeaseCode:      old.LeaseCode,
+					LeaseDays:      old.LeaseDays,
+					LeaseAt:        old.LeaseAt,
+					HostExpireAt:   old.HostExpireAt,
+					HostUser:       old.HostUser,
+					HostCode:       old.HostCode,
+					HostDays:       old.HostDays,
+					HostAt:         old.HostAt,
 					LastOnlineTime: time.Now().Unix(),
-                }
-                DB.Create(newPeer)
-                // 放地址簿（有归属才放）
-                if old.Account != "" && old.Account != "__device__" {
-                    var u model.User
-                    if DB.Where("username = ?", old.Account).First(&u).Error == nil {
-                        DB.Create(&model.AddressBook{
-                            Id:     deviceId,
-                            UserId: u.Id,
-                            Tags:   custom_types.AutoJson("[]"),
-                        })
-                    }
-                }
-                // 删老 peer + 老地址簿
-                DB.Where("id = ?", old.Id).Delete(&model.Peer{})
-                DB.Where("id = ?", old.Id).Delete(&model.AddressBook{})
-                return nil
-            }
-        }
-    }
-    return DB.Model(&model.Peer{}).Where("id = ?", deviceId).Updates(map[string]interface{}{
-        "lan_ip":      ip,
-        "device_code": deviceCode,
+				}
+				DB.Create(newPeer)
+				// 复制老地址簿行到新 ID
+				var ab model.AddressBook
+				if DB.Where("id = ?", old.Id).First(&ab).Error == nil {
+					newAb := ab
+					newAb.RowId = 0
+					newAb.Id = deviceId
+					DB.Create(&newAb)
+				}
+				// 删老 peer + 老地址簿
+				DB.Where("id = ?", old.Id).Delete(&model.Peer{})
+				DB.Where("id = ?", old.Id).Delete(&model.AddressBook{})
+				return nil
+			}
+		}
+	}
+	return DB.Model(&model.Peer{}).Where("id = ?", deviceId).Updates(map[string]interface{}{
+		"lan_ip":           ip,
+		"device_code":      deviceCode,
 		"last_online_time": time.Now().Unix(),
-    }).Error
+		"category":         "被控端",
+	}).Error
 }
 
 // CleanUnused 未使用 15 天清理

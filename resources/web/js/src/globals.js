@@ -44,20 +44,19 @@ let gl;
 let pixels;
 let flipPixels;
 let oldSize;
-if (YUVCanvas.WebGLFrameSink.isAvailable()) {
+if (typeof YUVCanvas !== 'undefined' && YUVCanvas.WebGLFrameSink.isAvailable()) {
   var canvas = document.createElement('canvas');
   yuvCanvas = YUVCanvas.attach(canvas, { webGL: true });
   gl = canvas.getContext("webgl");
-} else {
+} else if (typeof Worker !== 'undefined') {
   yuvWorker = new Worker("./yuv.js");
 }
 let testSpeed = [0, 0];
 
 export function draw(frame) {
   if (yuvWorker) {
-    // frame's (y/u/v).bytes already detached, can not transferrable any more.
     yuvWorker.postMessage(frame);
-  } else {
+  } else if (yuvCanvas) {
     var tm0 = new Date().getTime();
     yuvCanvas.drawFrame(frame);
     var width = canvas.width;
@@ -82,17 +81,6 @@ export function draw(frame) {
       testSpeed = [0, 0];
     }
   }
-  /*
-  var testCanvas = document.getElementById("test-yuv-decoder-canvas");
-  if (testCanvas && currentFrame) {
-    var ctx = testCanvas.getContext("2d");
-    testCanvas.width = frame.format.displayWidth;
-    testCanvas.height = frame.format.displayHeight;
-    var img = ctx.createImageData(testCanvas.width, testCanvas.height);
-    img.data.set(currentFrame);
-    ctx.putImageData(img, 0, 0);
-  }
-  */
 }
 
 export function sendOffCanvas(c) {
@@ -159,15 +147,13 @@ export function seal(unsigned, theirPk, ourSk) {
 
 function makeOnce(value) {
   var byteArray = Array(24).fill(0);
-
   for (var index = 0; index < byteArray.length && value > 0; index++) {
     var byte = value & 0xff;
     byteArray[index] = byte;
     value = (value - byte) / 256;
   }
-
   return Uint8Array.from(byteArray);
-};
+}
 
 export function encrypt(unsigned, nonce, key) {
   return sodium.crypto_secretbox_easy(unsigned, makeOnce(nonce), key);
@@ -176,6 +162,94 @@ export function encrypt(unsigned, nonce, key) {
 export function decrypt(signed, nonce, key) {
   return sodium.crypto_secretbox_open_easy(signed, makeOnce(nonce), key);
 }
+
+/* ------------------------------------------------------------------ */
+/* Helpers for localStorage-backed options                             */
+/* ------------------------------------------------------------------ */
+
+function getPeersForDart() {
+  const peers = [];
+  for (const [id, value] of Object.entries(getPeers())) {
+    if (!id) continue;
+    const tm = value['tm'];
+    const info = value['info'];
+    if (!tm || !info) continue;
+    peers.push([tm, id, info]);
+  }
+  return peers.sort().reverse().map(x => x.slice(1));
+}
+
+function loadRecentPeersSync() {
+  const peers = getPeersForDart();
+  const result = [];
+  for (const [id, info] of peers) {
+    result.push([id, JSON.stringify(info)]);
+  }
+  return result;
+}
+
+function getFav() {
+  try {
+    return JSON.parse(localStorage.getItem('fav')) || [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function loadFavPeersSync() {
+  const favs = getFav();
+  const peers = getPeers();
+  const result = [];
+  for (const id of favs) {
+    const info = peers[id];
+    if (info && info['info']) {
+      result.push([id, JSON.stringify(info['info'])]);
+    }
+  }
+  return result;
+}
+
+function peerExists(id) {
+  return getPeers()[id] ? true : false;
+}
+
+function peerHasPassword(id) {
+  const p = getPeers()[id];
+  return !!(p && p['password'] && p['password'].length);
+}
+
+function isUsingPublicServer() {
+  const custom = localStorage.getItem('custom-rendezvous-server');
+  return !custom || custom.length === 0;
+}
+
+function getConnectStatus() {
+  return JSON.stringify({ status_num: 1 });
+}
+
+function testIfValidServer(server) {
+  // Web 端无法做 Rust 那样的 TCP 校验；这里只做格式合法性判断。
+  // 空或者看起来像 host / host:port / scheme://host:port 的字符串即视为有效。
+  if (!server || typeof server !== 'string') return '';
+  const s = server.trim();
+  if (s.length === 0) return '';
+  if (/\s/.test(s)) return 'Invalid server address';
+  return '';
+}
+
+function getVersionNumber(v) {
+  try {
+    const parts = String(v).split('.').map(p => parseInt(p, 10) || 0);
+    while (parts.length < 3) parts.push(0);
+    return parts[0] * 10000 + parts[1] * 100 + parts[2];
+  } catch (e) {
+    return 0;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* setByName / getByName                                              */
+/* ------------------------------------------------------------------ */
 
 window.setByName = (name, value) => {
   switch (name) {
@@ -186,10 +260,21 @@ window.setByName = (name, value) => {
       newConn();
       startConn(value);
       break;
+    case 'session_add_sync':
+      // Web 没有 Rust 会话管理器，会话建立由 connection.ts 直接完成。
+      break;
+    case 'session_start':
+      // 同上，实际连接在 'connect' 中发起。
+      break;
+    case 'session_close':
+      close();
+      break;
     case 'login':
       value = JSON.parse(value);
       curConn.setRemember(value.remember == 'true');
       curConn.login(value.password);
+      break;
+    case 'send_2fa':
       break;
     case 'close':
       close();
@@ -216,9 +301,20 @@ window.setByName = (name, value) => {
       curConn.switchDisplay(value);
       break;
     case 'remove':
-      const peers = getPeers();
-      delete peers[value];
-      localStorage.setItem('peers', JSON.stringify(peers));
+      {
+        const peers = getPeers();
+        delete peers[value];
+        localStorage.setItem('peers', JSON.stringify(peers));
+      }
+      break;
+    case 'forget':
+      {
+        const peers = getPeers();
+        if (peers[value]) {
+          delete peers[value]['password'];
+          localStorage.setItem('peers', JSON.stringify(peers));
+        }
+      }
       break;
     case 'input_key':
       value = JSON.parse(value);
@@ -228,34 +324,60 @@ window.setByName = (name, value) => {
       curConn.inputString(value);
       break;
     case 'send_mouse':
-      let mask = 0;
-      value = JSON.parse(value);
-      switch (value.type) {
-        case 'down':
-          mask = 1;
-          break;
-        case 'up':
-          mask = 2;
-          break;
-        case 'wheel':
-          mask = 3;
-          break;
+      {
+        let mask = 0;
+        value = JSON.parse(value);
+        switch (value.type) {
+          case 'down': mask = 1; break;
+          case 'up': mask = 2; break;
+          case 'wheel': mask = 3; break;
+        }
+        switch (value.buttons) {
+          case 'left': mask |= 1 << 3; break;
+          case 'right': mask |= 2 << 3; break;
+          case 'wheel': mask |= 4 << 3; break;
+        }
+        curConn.inputMouse(mask, parseInt(value.x || '0'), parseInt(value.y || '0'), value.alt == 'true', value.ctrl == 'true', value.shift == 'true', value.command == 'true');
       }
-      switch (value.buttons) {
-        case 'left':
-          mask |= 1 << 3;
-          break;
-        case 'right':
-          mask |= 2 << 3;
-          break;
-        case 'wheel':
-          mask |= 4 << 3;
-      }
-      curConn.inputMouse(mask, parseInt(value.x || '0'), parseInt(value.y || '0'), value.alt == 'true', value.ctrl == 'true', value.shift == 'true', value.command == 'true');
       break;
     case 'option':
       value = JSON.parse(value);
       localStorage.setItem(value.name, value.value);
+      break;
+    case 'option:local':
+      value = JSON.parse(value);
+      localStorage.setItem('local:' + value.name, value.value);
+      break;
+    case 'option:session':
+      if (curConn) {
+        value = JSON.parse(value);
+        curConn.setOption(value.name, value.value);
+      }
+      break;
+    case 'option:peer':
+      {
+        value = JSON.parse(value);
+        const peers = getPeers();
+        const id = value.id;
+        if (!peers[id]) peers[id] = {};
+        peers[id][value.name] = value.value;
+        peers[id]['tm'] = new Date().getTime();
+        localStorage.setItem('peers', JSON.stringify(peers));
+      }
+      break;
+    case 'option:flutter:peer':
+      if (curConn) {
+        value = JSON.parse(value);
+        curConn.setOption('flutter_' + value.name, value.value);
+      }
+      break;
+    case 'option:flutter:local':
+      value = JSON.parse(value);
+      localStorage.setItem('flutter:' + value.name, value.value);
+      break;
+    case 'option:user:default':
+      value = JSON.parse(value);
+      localStorage.setItem('user-default:' + value.name, value.value);
       break;
     case 'peer_option':
       value = JSON.parse(value);
@@ -263,6 +385,22 @@ window.setByName = (name, value) => {
       break;
     case 'input_os_password':
       curConn.inputOsPassword(value);
+      break;
+    case 'restart':
+      curConn?.restartRemoteDevice?.();
+      break;
+    case 'send_note':
+      break;
+    case 'fav':
+      localStorage.setItem('fav', value);
+      break;
+    case 'query_onlines':
+      break;
+    case 'toggle_privacy_mode':
+      break;
+    case 'change_prefer_codec':
+      break;
+    case 'elevate_with_logon':
       break;
     default:
       break;
@@ -276,18 +414,6 @@ window.getByName = (name, arg) => {
   return JSON.stringify(v);
 }
 
-function getPeersForDart() {
-  const peers = [];
-  for (const [id, value] of Object.entries(getPeers())) {
-    if (!id) continue;
-    const tm = value['tm'];
-    const info = value['info'];
-    if (!tm || !info) continue;
-    peers.push([tm, id, info]);
-  }
-  return peers.sort().reverse().map(x => x.slice(1));
-}
-
 function _getByName(name, arg) {
   switch (name) {
     case 'peers':
@@ -295,36 +421,105 @@ function _getByName(name, arg) {
     case 'remote_id':
       return localStorage.getItem('remote-id');
     case 'remember':
-      return curConn.getRemember();
+      return curConn ? curConn.getRemember() : false;
     case 'toggle_option':
-      return curConn.getOption(arg) || false;
+      return curConn ? (curConn.getOption(arg) || false) : false;
     case 'option':
       return localStorage.getItem(arg);
+    case 'option:local':
+      return localStorage.getItem('local:' + arg);
+    case 'option:session':
+      return curConn ? curConn.getOption(arg) : '';
+    case 'option:peer':
+      if (arg) {
+        try {
+          arg = JSON.parse(arg);
+          const peers = getPeers();
+          const p = peers[arg.id];
+          return p ? p[arg.name] : '';
+        } catch (e) {
+          return '';
+        }
+      }
+      return '';
+    case 'option:flutter:peer':
+      return curConn ? curConn.getOption('flutter_' + arg) : '';
+    case 'option:flutter:local':
+      return localStorage.getItem('flutter:' + arg);
+    case 'option:user:default':
+      return localStorage.getItem('user-default:' + arg);
     case 'image_quality':
-      return curConn.getImageQuality();
+      return curConn ? curConn.getImageQuality() : '';
     case 'translate':
       arg = JSON.parse(arg);
       return translate(arg.locale, arg.text);
     case 'peer_option':
-      return curConn.getOption(arg);
+      return curConn ? curConn.getOption(arg) : '';
     case 'test_if_valid_server':
-      break;
+      return testIfValidServer(arg);
+    case 'get_version_number':
+      return getVersionNumber(arg);
     case 'version':
       return version;
+    case 'fav':
+      return JSON.stringify(getFav());
+    case 'load_recent_peers':
+      loadRecentPeersSync();
+      pushEvent('load_recent_peers', {});
+      return '';
+    case 'load_recent_peers_sync':
+      return JSON.stringify(loadRecentPeersSync());
+    case 'load_fav_peers':
+      loadFavPeersSync();
+      pushEvent('load_fav_peers', {});
+      return '';
+    case 'peer_exists':
+      return peerExists(arg);
+    case 'peer_has_password':
+      return peerHasPassword(arg);
+    case 'is_using_public_server':
+      return isUsingPublicServer();
+    case 'get_conn_status':
+      return getConnectStatus();
+    case 'main_display':
+      return JSON.stringify({ x: 0, y: 0, w: 1920, h: 1080 });
+    case 'alternative_codecs':
+      return '';
+    case 'audit_server':
+      return '';
+    case 'screen_info':
+      return JSON.stringify({ width: screen.width, height: screen.height });
+    default:
+      return '';
   }
-  return '';
 }
 
-let opusWorker = new Worker("./libopus.js");
+/* ------------------------------------------------------------------ */
+/* Audio                                                              */
+/* ------------------------------------------------------------------ */
+
+let opusWorker = null;
 let pcmPlayer;
 
 export function initAudio(channels, sampleRate) {
   pcmPlayer = newAudioPlayer(channels, sampleRate);
-  opusWorker.postMessage({ channels, sampleRate });
+  if (!opusWorker && typeof Worker !== 'undefined') {
+    try {
+      opusWorker = new Worker("./libopus.js");
+      opusWorker.onmessage = (e) => {
+        if (pcmPlayer) pcmPlayer.feed(e.data);
+      };
+    } catch (e) {
+      console.warn('opus worker failed', e);
+    }
+  }
+  if (opusWorker) {
+    opusWorker.postMessage({ channels, sampleRate });
+  }
 }
 
 export function playAudio(packet) {
-  opusWorker.postMessage(packet, [packet.buffer]);
+  if (opusWorker) opusWorker.postMessage(packet, [packet.buffer]);
 }
 
 window.init = async () => {
@@ -332,9 +527,6 @@ window.init = async () => {
     yuvWorker.onmessage = (e) => {
       onRgba(e.data);
     }
-  }
-  opusWorker.onmessage = (e) => {
-    pcmPlayer.feed(e.data);
   }
   loadVp9(() => { });
   await initZstd();
@@ -359,24 +551,18 @@ function newAudioPlayer(channels, sampleRate) {
 
 export function copyToClipboard(text) {
   if (window.clipboardData && window.clipboardData.setData) {
-    // Internet Explorer-specific code path to prevent textarea being shown while dialog is visible.
     return window.clipboardData.setData("Text", text);
-
-  }
-  else if (document.queryCommandSupported && document.queryCommandSupported("copy")) {
+  } else if (document.queryCommandSupported && document.queryCommandSupported("copy")) {
     var textarea = document.createElement("textarea");
     textarea.textContent = text;
-    textarea.style.position = "fixed";  // Prevent scrolling to bottom of page in Microsoft Edge.
+    textarea.style.position = "fixed";
     document.body.appendChild(textarea);
     textarea.select();
     try {
-      return document.execCommand("copy");  // Security exception may be thrown by some browsers.
-    }
-    catch (ex) {
+      return document.execCommand("copy");
+    } catch (ex) {
       console.warn("Copy to clipboard failed.", ex);
-      // return prompt("Copy to clipboard: Ctrl+C, Enter", text);
-    }
-    finally {
+    } finally {
       document.body.removeChild(textarea);
     }
   }

@@ -65,7 +65,7 @@
             <el-option label="在线设备" value="online" />
             <el-option label="离线设备" value="offline" />
             <el-option label="地址簿设备" value="owned" />
-            <el-option label="被控端游离设备" value="orphan_server" />
+            <el-option label="被控端设备" value="orphan_server" />
             <el-option label="控制端设备" value="orphan_client" />
           </el-select>
           <el-select v-model="tableSelect" placeholder="留存表" style="width:160px;margin-left:8px" @change="openTableBySelect">
@@ -96,6 +96,7 @@
               <span v-else>{{ row.account }}</span>
             </template>
           </el-table-column>
+		  <el-table-column v-if="c.name==='category'" prop="category" label="分类" align="center" width="110"/>
           <el-table-column v-if="c.name==='lease_expire_at'" prop="lease_expire_at" label="开通有效期" align="center" width="160">
             <template #default="{row}">{{ fmtTime(row.lease_expire_at) }}</template>
           </el-table-column>
@@ -518,9 +519,9 @@
     } else if (listFilter.value === 'owned') {
       arr = arr.filter(r => r.account && r.account !== '__device__')
     } else if (listFilter.value === 'orphan_server') {
-      arr = arr.filter(r => (!r.account || r.account === '__device__') && r.lan_ip)
+      arr = arr.filter(r => r.category === '被控端')
     } else if (listFilter.value === 'orphan_client') {
-      arr = arr.filter(r => (!r.account || r.account === '__device__') && !r.lan_ip)
+      arr = arr.filter(r => r.category === '控制端')
     }
     displayList.value = arr
   }
@@ -763,8 +764,9 @@
   const columnSettingVisible = ref(false)
   const allColumns = ref([
     { name: 'id', visible: true, label: 'Id' },
-    // ===== 新增 13 列 =====
+    // ===== 新增 14 列 =====
     { name: 'account', visible: true, label: '账号归属' },
+	{ name: 'category', visible: true, label: '分类' },
     { name: 'lease_expire_at', visible: true, label: '开通有效期' },
     { name: 'host_expire_at', visible: true, label: '托管有效期' },
     { name: 'lan_ip', visible: true, label: '局域网ip' },
