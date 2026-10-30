@@ -260,6 +260,9 @@ window.setByName = (name, value) => {
             break;
         case 'option':
             value = JSON.parse(value);
+            if (value.name === 'relay-server') {
+                break;
+            }
             localStorage.setItem(value.name, value.value);
             if (value.name === 'access_token' && value.value) {
                 getServerConf(value.value);
@@ -307,12 +310,16 @@ function _getByName(name, arg) {
             return curConn.getRemember();
         case 'toggle_option':
             return curConn.getOption(arg) || false;
-        case 'option':
+        case 'option': {
             const v = localStorage.getItem(arg);
             if (arg === 'access_token' && v) {
                 getServerConf(v);
             }
+            if (arg === 'relay-server') {
+                return '';
+            }
             return v;
+        }
         case 'image_quality':
             return curConn.getImageQuality();
         case 'translate':

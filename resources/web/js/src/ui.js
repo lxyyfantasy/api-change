@@ -7,10 +7,9 @@ const app = document.querySelector('#app');
 if (app) {
   app.innerHTML = `
   <div id="connect" style="text-align: center"><table style="display: inline-block">
-    <tr style="display: none;"><td><span>Host: </span></td><td><input id="host" /></td></tr>
-    <tr style="display: none;"><td><span>Key: </span></td><td><input id="key" /></td></tr>
-    <tr style="display: none;"><td><span>Id: </span></td><td><input id="id" /></td></tr>
-    <tr style="display: none;"><td></td><td><button onclick="connect();">Connect</button></td></tr>
+    <tr><td><span>Host: </span></td><td><input id="host" /></td></tr>
+    <tr><td><span>Key: </span></td><td><input id="key" /></td></tr>
+    <tr><td><span>Id: </span></td><td><input id="id" type="hidden" /></td></tr>
   </table></div>
   <div id="password" style="display: none;">
     <input type="password" id="password" />
@@ -34,8 +33,6 @@ if (app) {
   document.body.onload = () => {
     const host = document.querySelector('#host');
     host.value = localStorage.getItem('custom-rendezvous-server');
-    const id = document.querySelector('#id');
-    id.value = localStorage.getItem('id');
     const key = document.querySelector('#key');
     key.value = localStorage.getItem('key');
     player = YUVCanvas.attach(document.getElementById('player'));
@@ -62,8 +59,9 @@ if (app) {
         globals.draw(f);
         player.drawFrame(f);
       });
-      document.querySelector('div#status').style.display = 'none';
+      document.querySelector('div#status').style.display = 'block';
       document.querySelector('div#connect').style.display = 'none';
+      document.querySelector('div#text').innerHTML = 'Connecting ...';
       await conn.start(id.value);
     };
     func();

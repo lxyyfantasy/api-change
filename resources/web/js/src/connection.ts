@@ -8,7 +8,11 @@ import { decompress, mapKey, sleep } from "./common";
 
 const PORT = 21116;
 // only the first is used to init `HOST`
-const HOSTS = [location.hostname];
+const HOSTS = [
+  "rs-sg.rustdesk.com",
+  "rs-cn.rustdesk.com",
+  "rs-us.rustdesk.com",
+];
 let HOST = localStorage.getItem("rendezvous-server") || HOSTS[0];
 //根据协议设置为ws或wss
 const SCHEMA=location.protocol=="https:"?"wss://":"ws://";
@@ -768,9 +772,9 @@ function getrUriFromRs(
   if (uri.indexOf(":") > 0) {
     const tmp = uri.split(":");
     const port = parseInt(tmp[1]);
-    uri = tmp[0] + ":" + (isRelay ? 21119 : 21118);
+    uri = tmp[0] + ":" + (port + (isRelay ? roffset || 3 : 2));
   } else {
-    uri += ":" + (isRelay ? 21119 : 21118);
+    uri += ":" + (PORT + (isRelay ? 3 : 2));
   }
   return SCHEMA + uri;
 }
