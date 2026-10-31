@@ -195,7 +195,7 @@
 <script>
 (function () {
   // if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) return;
-  const api = location.protocol + '//' + location.hostname + ':21114';
+  const api = location.protocol + '//' + location.hostname;
   function curAccount() {
     try { return JSON.parse(localStorage.getItem('user_info')).name || '' } catch (e) { return '' }
   }
