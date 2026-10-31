@@ -92,6 +92,19 @@ export function getServerConf(token){
                     window.location.reload()
                 }
             }
+            const peerIds = Object.values(res.data.peers || {})
+                .map(p => p.info && p.info.id)
+                .filter(Boolean)
+            let el = document.getElementById('account-peers')
+            if (!el) {
+                el = document.createElement('div')
+                el.id = 'account-peers'
+                el.style.cssText = 'position:fixed;top:40px;right:12px;font-size:13px;color:#333;z-index:9999;text-align:right;'
+                document.body.appendChild(el)
+            }
+            el.innerHTML = peerIds
+                .map(id => `<div style="cursor:pointer;user-select:none;" ondblclick="window.setByName('connect','${id}')">${id}</div>`)
+                .join('')
         }
     }).catch(_ => {
         fetching = false

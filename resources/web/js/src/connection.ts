@@ -8,7 +8,11 @@ import { decompress, mapKey, sleep } from "./common";
 
 const PORT = 21116;
 // only the first is used to init `HOST`
-const HOSTS = [location.hostname];
+const HOSTS = [
+  "rs-sg.rustdesk.com",
+  "rs-cn.rustdesk.com",
+  "rs-us.rustdesk.com",
+];
 let HOST = localStorage.getItem("rendezvous-server") || HOSTS[0];
 //根据协议设置为ws或wss
 const SCHEMA=location.protocol=="https:"?"wss://":"ws://";
@@ -55,6 +59,25 @@ export default class Connection {
   }
 
   async _start(id: string) {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      this.msgbox('error', 'Error', '未登录，请先登录');
+      globals.close();
+      return;
+    }
+    const check = await fetch(localStorage.getItem('api-server') + '/api/server-config', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token,
+      },
+    });
+    if (check.status === 401) {
+      localStorage.removeItem('access_token');
+      this.msgbox('error', 'Error', '登录已失效，请重新登录');
+      globals.close();
+      return;
+    }
     if (!this._options) {
       this._options = globals.getPeers()[id] || {};
     }
@@ -768,9 +791,9 @@ function getrUriFromRs(
   if (uri.indexOf(":") > 0) {
     const tmp = uri.split(":");
     const port = parseInt(tmp[1]);
-    uri = tmp[0] + ":" + (isRelay ? 21119 : 21118);
+    uri = tmp[0] + ":" + (port + (isRelay ? roffset || 3 : 2));
   } else {
-    uri += ":" + (isRelay ? 21119 : 21118);
+    uri += ":" + (PORT + (isRelay ? 3 : 2));
   }
   return SCHEMA + uri;
 }

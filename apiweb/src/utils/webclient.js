@@ -9,10 +9,10 @@ import { useAppStore } from '@/store/app'
 
 const app = useAppStore()
 
+const apiServer = `${location.protocol}//${location.hostname}:21114`
+
 export const toWebClientLink = (row) => {
-  //v2
-  console.log(app.setting.rustdeskConfig)
-  window.open(`${app.setting.rustdeskConfig.api_server}/max/#/${row.id}`)
+  window.open(`${apiServer}/webclient/#/${row.id}`)
 }
 
 export async function getPeerSlat (id) {
@@ -94,5 +94,5 @@ export async function getPeerSlat (id) {
 }
 
 export function getV2ShareUrl (token) {
-  return `${app.setting.rustdeskConfig.api_server}/max/#/?share_token=${token}`
+  return `${apiServer}/webclient/#/?share_token=${token}`
 }
