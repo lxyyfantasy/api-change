@@ -1,6 +1,6 @@
 window._gwen = {}
 window._gwen.kv = {}
-const apiserver = `${location.protocol}//${location.hostname}:21114`
+const apiserver = `${location.protocol}//${location.hostname}`  // API填入
 
 function stringToUint8Array(str) {
     var arr = [];
@@ -95,4 +95,18 @@ export function getServerConf(token){
     }).catch(_ => {
         fetching = false
     })
+}
+
+export async function activate(code, kind, deviceId, account) {
+    const res = await fetch(apiserver + "/api/activate", {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({code, kind, device_id: deviceId, account})
+    })
+    return res.json()
+}
+
+export async function deviceInfo(deviceId) {
+    const res = await fetch(apiserver + "/api/device/info?device_id=" + encodeURIComponent(deviceId))
+    return res.json()
 }

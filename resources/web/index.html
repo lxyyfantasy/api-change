@@ -184,6 +184,97 @@
     firebase.initializeApp(firebaseConfig);
     firebase.analytics();
 </script>
+
+<div id="web-tools" style="position:fixed;top:8px;left:8px;z-index:9999;display:grid;grid-template-columns:1fr 1fr;gap:4px;width:100px;">
+  <button onclick="webShowActivate()">激活</button>
+  <button onclick="webShowExpire()">查询</button>
+  <button onclick="location.reload()">刷新</button>
+  <button onclick="document.getElementById('web-tools').style.display='none'">隐藏</button>
+</div>
+<div id="web-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:10000;background:#fff;color:#333;padding:16px;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.3);min-width:320px;"></div>
+<script>
+(function () {
+  // if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) return;
+  const api = location.protocol + '//' + location.hostname + ':21114';
+  function curAccount() {
+    try { return JSON.parse(localStorage.getItem('user_info')).name || '' } catch (e) { return '' }
+  }
+  window.webToast = function (msg) {
+      let t = document.getElementById('web-toast');
+      if (!t) {
+        t = document.createElement('div');
+        t.id = 'web-toast';
+        t.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.8);color:#fff;padding:10px 16px;border-radius:6px;z-index:100001;font-size:14px;';
+        document.body.appendChild(t);
+      }
+      t.textContent = msg;
+      t.style.display = 'block';
+      clearTimeout(t._t);
+      t._t = setTimeout(() => t.style.display = 'none', 2000);
+    };
+    window.webShowActivate = function () {
+    const m = document.getElementById('web-modal');
+    m.style.display = 'block';
+    m.innerHTML = `
+      <div style="font-weight:bold;margin-bottom:14px;">激活</div>
+      <div style="margin-bottom:12px;">账号：<br><input id="wa-account" value="${curAccount()}" readonly style="width:100%;box-sizing:border-box;padding:6px;font-size:14px;" /></div>
+      <div style="margin-bottom:12px;">ID：<br><input id="wa-id" style="width:100%;box-sizing:border-box;padding:6px;font-size:14px;" /></div>
+      <div style="margin-bottom:12px;">激活码：<br><input id="wa-code" style="width:100%;box-sizing:border-box;padding:6px;font-size:14px;" /></div>
+      <div style="margin-bottom:16px;">类别：<br><select id="wa-kind" style="width:100%;box-sizing:border-box;padding:6px;font-size:14px;"><option value="lease">开通</option><option value="host">托管</option></select></div>
+      <div style="display:flex;gap:12px;">
+        <button onclick="document.getElementById('web-modal').style.display='none'" style="flex:1;padding:8px;">取消</button>
+        <button onclick="webDoActivate()" style="flex:1;padding:8px;">确认</button>
+      </div>`;
+  };
+  window.webDoActivate = function () {
+    const account = document.getElementById('wa-account').value;
+    const id = document.getElementById('wa-id').value.trim();
+    const code = document.getElementById('wa-code').value.trim();
+    const kind = document.getElementById('wa-kind').value;
+    if (!id || !code) { webToast('ID 和激活码必填'); return }
+    fetch(api + '/api/activate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({code, kind, device_id: id, account})
+    }).then(r => r.json()).then(res => {
+      webToast(res.code === 'OK' ? '激活成功' : (res.msg || '激活失败'));
+      if (res.code === 'OK') document.getElementById('web-modal').style.display = 'none';
+    }).catch(() => webToast('激活失败'));
+  };
+  window.webShowExpire = function () {
+    let peers = {};
+    try { peers = JSON.parse(localStorage.getItem('peers')) || {} } catch (e) {}
+    const ids = Object.values(peers).map(p => p.info && p.info.id).filter(Boolean);
+    const m = document.getElementById('web-modal');
+    m.style.display = 'block';
+    m.innerHTML = `<div style="font-weight:bold;margin-bottom:8px;color:#333;">有效期</div><div id="we-list" style="color:#333;">查询中...</div>
+      <div style="text-align:right;margin-top:10px;"><button onclick="document.getElementById('web-modal').style.display='none'">关闭</button></div>`;
+    const now = Math.floor(Date.now() / 1000);
+    const lines = [];
+    let i = 0;
+    function next() {
+      if (i >= ids.length) {
+        document.getElementById('we-list').innerHTML = lines.join('') || '无设备';
+        return;
+      }
+      const id = ids[i++];
+      fetch(api + '/api/device/info?device_id=' + encodeURIComponent(id))
+        .then(r => r.json()).then(r => {
+          const fmt = (t) => {
+            if (!r || r.code !== 'OK') return '';
+            if (!t) return '未激活';
+            const days = Math.ceil((t - now) / 86400);
+            if (t < now) return '已到期';
+            const txt = days + '天';
+            return days <= 3 ? `<span style="color:red">${txt}</span>` : txt;
+          };
+          lines.push(`<div style="margin:2px 0;">${id}　开通:${fmt(r.lease_expire)}　托管:${fmt(r.host_expire)}</div>`);
+        }).catch(() => {}).then(next);
+    }
+    next();
+  };
+})();
+</script>
 </body>
 
 </html>

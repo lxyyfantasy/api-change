@@ -9,7 +9,7 @@ import { useAppStore } from '@/store/app'
 
 const app = useAppStore()
 
-const apiServer = `${location.protocol}//${location.hostname}:21114`
+const apiServer = `${location.protocol}//${location.hostname}`   // 地址簿按钮跳转
 
 export const toWebClientLink = (row) => {
   window.open(`${apiServer}/webclient/#/${row.id}`)
