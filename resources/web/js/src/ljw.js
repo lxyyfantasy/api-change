@@ -74,9 +74,8 @@ export function getServerConf(token){
     ).then(res => res.json()).then(res => {
         fetching = false
         if (res.code === 0) {
-            localStorage.removeItem('peers')
-            if (!localStorage.getItem('custom-rendezvous-server') || !localStorage.getItem('key')) {
-                localStorage.setItem('custom-rendezvous-server', res.data.id_server)
+            // localStorage.removeItem('peers')
+            if (!localStorage.getItem('key')) {
                 localStorage.setItem('key', res.data.key)
             }
             const newPeers = {}

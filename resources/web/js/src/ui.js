@@ -40,32 +40,36 @@ if (app) {
     // globals.sendOffCanvas(document.getElementById('player'));
   };
 
+  // window.connect = () => {
+  //   const host = document.querySelector('#host');
+  //   localStorage.setItem('custom-rendezvous-server', host.value);
+  //   // const id = document.querySelector('#id');
+  //   // localStorage.setItem('id', id.value);
+  //   const key = document.querySelector('#key');
+  //   localStorage.setItem('key', key.value);
+  //   const func = async () => {
+  //     const conn = globals.newConn();
+  //     conn.setMsgbox(msgbox);
+  //     conn.setDraw((f) => {
+  //       /*
+  //       if (!(document.getElementById('player').width > 0)) {
+  //         document.getElementById('player').width = f.format.displayWidth;
+  //         document.getElementById('player').height = f.format.displayHeight;
+  //       }
+  //       */
+  //       globals.draw(f);
+  //       player.drawFrame(f);
+  //     });
+  //     document.querySelector('div#status').style.display = 'block';
+  //     document.querySelector('div#connect').style.display = 'none';
+  //     document.querySelector('div#text').innerHTML = 'Connecting ...';
+  //     await conn.start(localStorage.getItem('id') || '');
+  //   };
+  //   func();
+  // }
+  
   window.connect = () => {
-    const host = document.querySelector('#host');
-    localStorage.setItem('custom-rendezvous-server', host.value);
-    // const id = document.querySelector('#id');
-    // localStorage.setItem('id', id.value);
-    const key = document.querySelector('#key');
-    localStorage.setItem('key', key.value);
-    const func = async () => {
-      const conn = globals.newConn();
-      conn.setMsgbox(msgbox);
-      conn.setDraw((f) => {
-        /*
-        if (!(document.getElementById('player').width > 0)) {
-          document.getElementById('player').width = f.format.displayWidth;
-          document.getElementById('player').height = f.format.displayHeight;
-        }
-        */
-        globals.draw(f);
-        player.drawFrame(f);
-      });
-      document.querySelector('div#status').style.display = 'block';
-      document.querySelector('div#connect').style.display = 'none';
-      document.querySelector('div#text').innerHTML = 'Connecting ...';
-      await conn.start(localStorage.getItem('id') || '');
-    };
-    func();
+      msgbox('error', 'Error', '禁止使用');
   }
 
   function msgbox(type, title, text) {

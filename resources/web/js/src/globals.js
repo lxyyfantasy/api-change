@@ -23,7 +23,9 @@ export function msgbox(type, title, text) {
     if (!type || (type == 'error' && !text)) return;
     const text2 = text.toLowerCase();
     var hasRetry = checkIfRetry(type, title, text) ? 'true' : '';
-    onGlobalEvent(JSON.stringify({name: 'msgbox', type, title, text, hasRetry}));
+    if (typeof onGlobalEvent !== 'undefined') {
+        onGlobalEvent(JSON.stringify({name: 'msgbox', type, title, text, hasRetry}));
+    }
 }
 
 function jsonfyForDart(payload) {
@@ -38,7 +40,9 @@ function jsonfyForDart(payload) {
 export function pushEvent(name, payload) {
     payload = jsonfyForDart(payload);
     payload.name = name;
-    onGlobalEvent(JSON.stringify(payload));
+    if (typeof onGlobalEvent !== 'undefined') {
+        onGlobalEvent(JSON.stringify(payload));
+    }
 }
 
 let yuvWorker;
@@ -188,20 +192,20 @@ window.setByName = (name, value) => {
             localStorage.setItem('remote-id', value);
             break;
         case 'connect':
-            // newConn();
-            // startConn(value);
-            // break;
-			msgbox('error', 'Error', '禁止使用');
-		    return;
+            newConn();
+            startConn(value);
+            break;
+			// msgbox('error', 'Error', '禁止使用');
+		    // return;
         case 'login':
             value = JSON.parse(value);
             curConn.setRemember(value.remember == 'true');
             curConn.login(value.password);
             break;
         case 'close':
-            localStorage.removeItem('peers')
+            // localStorage.removeItem('peers')
             close();
-            location.reload();
+            // location.reload();
             break;
         case 'refresh':
             curConn.refresh();
