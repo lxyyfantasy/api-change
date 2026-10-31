@@ -1,6 +1,6 @@
 window._gwen = {}
 window._gwen.kv = {}
-const apiserver = localStorage.getItem('api-server')
+const apiserver = `${location.protocol}//${location.hostname}:21114`
 
 function stringToUint8Array(str) {
     var arr = [];
@@ -22,6 +22,14 @@ function getQueryVariable() {
 }
 
 getQueryVariable()
+
+;(function clearPeersIfNoToken() {
+    if (!localStorage.getItem('access_token')) {
+        localStorage.removeItem('peers')
+        const el = document.getElementById('account-peers')
+        if (el) el.innerHTML = ''
+    }
+})()
 
 const id = window._gwen.kv.id || ''
 if (id) {
@@ -66,45 +74,24 @@ export function getServerConf(token){
     ).then(res => res.json()).then(res => {
         fetching = false
         if (res.code === 0) {
+            localStorage.removeItem('peers')
             if (!localStorage.getItem('custom-rendezvous-server') || !localStorage.getItem('key')) {
                 localStorage.setItem('custom-rendezvous-server', res.data.id_server)
                 localStorage.setItem('key', res.data.key)
             }
+            const newPeers = {}
             if (res.data.peers) {
-                const oldPeers = JSON.parse(localStorage.getItem('peers')) || {}
-                let needUpdate = false
                 Object.keys(res.data.peers).forEach(k => {
-                    if (!oldPeers[k]) {
-                        oldPeers[k] = res.data.peers[k]
-                        needUpdate = true
-                    } else {
-                        oldPeers[k].info = res.data.peers[k].info
+                    const p = res.data.peers[k]
+                    if (p.info && p.info.hash && !p.password) {
+                        const pwd = stringToUint8Array(window.atob(p.info.hash))
+                        p.password = pwd.toString()
+                        p.remember = true
                     }
-                    if (oldPeers[k].info && oldPeers[k].info.hash && !oldPeers[k].password) {
-                        let p1 = window.atob(oldPeers[k].info.hash)
-                        const pwd = stringToUint8Array(p1)
-                        oldPeers[k].password = pwd.toString()
-                        oldPeers[k].remember = true
-                    }
+                    newPeers[k] = p
                 })
-                localStorage.setItem('peers', JSON.stringify(oldPeers))
-                if (needUpdate) {
-                    window.location.reload()
-                }
+                localStorage.setItem('peers', JSON.stringify(newPeers))
             }
-            const peerIds = Object.values(res.data.peers || {})
-                .map(p => p.info && p.info.id)
-                .filter(Boolean)
-            let el = document.getElementById('account-peers')
-            if (!el) {
-                el = document.createElement('div')
-                el.id = 'account-peers'
-                el.style.cssText = 'position:fixed;top:40px;right:12px;font-size:13px;color:#333;z-index:9999;text-align:right;'
-                document.body.appendChild(el)
-            }
-            el.innerHTML = peerIds
-                .map(id => `<div style="cursor:pointer;user-select:none;" ondblclick="window.setByName('connect','${id}')">${id}</div>`)
-                .join('')
         }
     }).catch(_ => {
         fetching = false

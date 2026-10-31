@@ -5,6 +5,7 @@ import (
 	"github.com/lejianwen/rustdesk-api/v2/global"
 	"github.com/lejianwen/rustdesk-api/v2/http/response"
 	"github.com/lejianwen/rustdesk-api/v2/http/response/api"
+	"github.com/lejianwen/rustdesk-api/v2/model"
 	"github.com/lejianwen/rustdesk-api/v2/service"
 	"time"
 )
@@ -33,12 +34,16 @@ func (i *WebClient) ServerConfig(c *gin.Context) {
 		peers[ab.Id] = pp
 	}
 	apiServer := "http://" + c.Request.Host
+
+	sc := &model.ServerConfig{}
+	service.DB.Where("id = 1").First(sc)
+
 	response.Success(
 		c,
 		gin.H{
 			"id_server":  global.Config.Rustdesk.IdServer,
 			"api_server": apiServer,
-			"key":        global.Config.Rustdesk.Key,
+			"key":        sc.ServerKey,
 			"peers":      peers,
 		},
 	)

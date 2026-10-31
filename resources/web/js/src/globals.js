@@ -188,16 +188,20 @@ window.setByName = (name, value) => {
             localStorage.setItem('remote-id', value);
             break;
         case 'connect':
-            newConn();
-            startConn(value);
-            break;
+            // newConn();
+            // startConn(value);
+            // break;
+			msgbox('error', 'Error', '禁止使用');
+		    return;
         case 'login':
             value = JSON.parse(value);
             curConn.setRemember(value.remember == 'true');
             curConn.login(value.password);
             break;
         case 'close':
+            localStorage.removeItem('peers')
             close();
+            location.reload();
             break;
         case 'refresh':
             curConn.refresh();
@@ -266,6 +270,7 @@ window.setByName = (name, value) => {
             }
             break;
         case 'peer_option':
+		    if (!curConn) return;
             value = JSON.parse(value);
             curConn.setOption(value.name, value.value);
             break;
@@ -319,6 +324,7 @@ function _getByName(name, arg) {
             arg = JSON.parse(arg);
             return translate(arg.locale, arg.text);
         case 'peer_option':
+		    if (!curConn) return '';
             return curConn.getOption(arg);
         case 'test_if_valid_server':
             break;

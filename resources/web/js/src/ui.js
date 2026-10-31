@@ -9,8 +9,6 @@ if (app) {
   <div id="connect" style="text-align: center"><table style="display: inline-block">
     <tr><td><span>Host: </span></td><td><input id="host" /></td></tr>
     <tr><td><span>Key: </span></td><td><input id="key" /></td></tr>
-    <tr><td><span>Id: </span></td><td><input id="id" /></td></tr>
-    <tr><td></td><td><button onclick="connect();">Connect</button></td></tr>
   </table></div>
   <div id="password" style="display: none;">
     <input type="password" id="password" />
@@ -34,8 +32,8 @@ if (app) {
   document.body.onload = () => {
     const host = document.querySelector('#host');
     host.value = localStorage.getItem('custom-rendezvous-server');
-    const id = document.querySelector('#id');
-    id.value = localStorage.getItem('id');
+    // const id = document.querySelector('#id');
+    // id.value = localStorage.getItem('id');
     const key = document.querySelector('#key');
     key.value = localStorage.getItem('key');
     player = YUVCanvas.attach(document.getElementById('player'));
@@ -45,8 +43,8 @@ if (app) {
   window.connect = () => {
     const host = document.querySelector('#host');
     localStorage.setItem('custom-rendezvous-server', host.value);
-    const id = document.querySelector('#id');
-    localStorage.setItem('id', id.value);
+    // const id = document.querySelector('#id');
+    // localStorage.setItem('id', id.value);
     const key = document.querySelector('#key');
     localStorage.setItem('key', key.value);
     const func = async () => {
@@ -65,7 +63,7 @@ if (app) {
       document.querySelector('div#status').style.display = 'block';
       document.querySelector('div#connect').style.display = 'none';
       document.querySelector('div#text').innerHTML = 'Connecting ...';
-      await conn.start(id.value);
+      await conn.start(localStorage.getItem('id') || '');
     };
     func();
   }
